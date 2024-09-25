@@ -101,7 +101,7 @@ def plotar_estatisticas_sampen(r_vals, mediana, erro_padrao, variancia, erro_nor
 
 # Parâmetros
 delta_t = 0.010  # Intervalo de tempo em segundos
-r_vals = np.linspace(0.1, 0.5, 5)  # Diferentes valores de r para análise
+r_vals = np.linspace(0.1, 1.0, 5)  # Diferentes valores de r para análise
 
 # Carregar os dados
 dados = carregar_dados(r"C:\Users\julia\controle-postural\BOS_0605_CP_CV_01.txt")
@@ -125,8 +125,8 @@ if dados is not None:
     mediana_vals, erro_padrao_vals, variancia_vals, erro_normalizado_vals = [], [], [], []
     
     for r in r_vals:
-        mse_x = multiscale_entropy(x, scale_max=20, r=r)
-        mse_y = multiscale_entropy(y, scale_max=20, r=r)
+        mse_x = multiscale_entropy(x, scale_max=20, m=2, r=r)  # Passando m e r
+        mse_y = multiscale_entropy(y, scale_max=20, m=2, r=r)  # Passando m e r
 
         # Calculando estatísticas
         mediana, erro_padrao, variancia, erro_normalizado = calcular_estatisticas_sampen(mse_x, mse_y)
