@@ -1,0 +1,229 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
+import tkinter as tk
+from tkinter import scrolledtext
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import plotly.express as px
+from pathlib import Path
+
+# Função para carregar os dados de um arquivo
+def carregar_dados(caminho_arquivo, skip_rows=15, sep="\t", decimal=','):
+    try:
+        return pd.read_csv(caminho_arquivo, skiprows=skip_rows, sep=sep, decimal=decimal)
+    except FileNotFoundError:
+        print(f"Arquivo não encontrado: {caminho_arquivo}")
+        return None
+
+# Função para calcular a entropia amostral (SampEn)
+def sample_entropy(time_series, m, r):
+    n = len(time_series)
+
+    def _phi(m):
+        if n - m + 1 <= 0:
+            return 0  # Evita divisão por zero
+        x = np.array([time_series[i:i + m] for i in range(n - m + 1)])
+        if len(x) == 0:
+            return 0  # Evita operações com arrays vazios
+        C = np.sum(np.max(np.abs(x[:, None] - x[None, :]), axis=2) <= r, axis=0) - 1
+        return np.sum(C) / (n - m + 1) / (n - m)
+
+    phi_m_plus_1 = _phi(m + 1)
+    phi_m = _phi(m)
+
+    if phi_m == 0 or phi_m_plus_1 == 0:
+        return 0  # Evita divisão por zero e log de zero
+    return -np.log(phi_m_plus_1 / phi_m)
+
+# Função para calcular a entropia multiescala (MSE)
+def multiscale_entropy(data, scale_max, m=2, r=0.2):
+    def coarse_graining(data, scale):
+        n = len(data)
+        b = n // scale
+        if b == 0:
+            return np.array([])  # Evita arrays vazios
+        return np.mean(data[:b * scale].reshape((b, scale)), axis=1)
+
+    entropies = []
+    for scale in range(1, scale_max + 1):
+        coarse_data = coarse_graining(data, scale)
+        if len(coarse_data) == 0:
+            entropies.append(0)  # Adiciona zero se os dados estiverem vazios
+            continue
+        sampen = sample_entropy(coarse_data, m=m, r=r * np.std(coarse_data))
+        entropies.append(sampen)
+
+    return entropies
+
+# Função para calcular estatísticas das entropias SampEn XY
+def calcular_estatisticas_sampen(mse_x, mse_y):
+    sampen_xy = np.array(mse_x) + np.array(mse_y)
+
+    mediana_sampen_xy = np.median(sampen_xy)
+    erro_padrao_sampen_xy = np.std(sampen_xy, ddof=1) / np.sqrt(len(sampen_xy))
+    variancia_sampen_xy = np.var(sampen_xy)
+    erro_normalizado_sampen_xy = erro_padrao_sampen_xy / mediana_sampen_xy
+
+    return (mediana_sampen_xy, erro_padrao_sampen_xy, variancia_sampen_xy, erro_normalizado_sampen_xy)
+
+# Função para plotar as estatísticas para os três eixos em janelas separadas
+def plotar_estatisticas_separadas(r_vals, nome_arquivo, estatisticas):
+    eixos = ['X', 'Y', 'Z']
+    m_vals = [1, 2, 3, 4]
+    cores = ['b', 'g', 'r', 'c']  # Adicionamos mais uma cor para m=4
+
+    for i, eixo in enumerate(eixos):
+        fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+        fig.suptitle(f'Estatísticas SampEn - Eixo {eixo} - {os.path.basename(nome_arquivo)}', fontsize=16)
+
+        for j, m in enumerate(m_vals):
+            mediana_vals, erro_padrao_vals, variancia_vals, erro_normalizado_vals = estatisticas[eixo][m]
+
+            axes[0, 0].plot(r_vals, mediana_vals, marker='*', color=cores[j], label=f'm={m}')
+            axes[0, 1].plot(r_vals, erro_padrao_vals, marker='o', color=cores[j], label=f'm={m}')
+            axes[1, 0].plot(r_vals, variancia_vals, marker='s', color=cores[j], label=f'm={m}')
+            axes[1, 1].plot(r_vals, erro_normalizado_vals, marker='d', color=cores[j], label=f'm={m}')
+
+        axes[0, 0].set_title('Mediana')
+        axes[0, 0].set_xlabel('r')
+        axes[0, 0].set_ylabel('Mediana')
+        axes[0, 0].set_ylim(0, 5)
+        axes[0, 0].legend()
+
+        axes[0, 1].set_title('Erro Padrão')
+        axes[0, 1].set_xlabel('r')
+        axes[0, 1].set_ylabel('Erro Padrão')
+        axes[0, 1].set_ylim(0, 0.1)
+        axes[0, 1].legend()
+
+        axes[1, 0].set_title('Variância')
+        axes[1, 0].set_xlabel('r')
+        axes[1, 0].set_ylabel('Variância')
+        axes[1, 0].set_ylim(0, 0.1)
+        axes[1, 0].legend()
+
+        axes[1, 1].set_title('Erro Normalizado')
+        axes[1, 1].set_xlabel('r')
+        axes[1, 1].set_ylabel('Erro Normalizado')
+        axes[1, 1].set_ylim(0, 0.05)
+        axes[1, 1].legend()
+
+        plt.tight_layout()
+        plt.show()
+
+# Função para plotar a matriz em gráficos diferentes com zoom interativo e salvar os gráficos
+def plotar_matriz_interativa(tabela, output_dir, nome_arquivo):
+    colunas = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+    ]
+
+    nomes_linhas = [
+        ['X(m/s²)', 'Y(m/s²)', 'Z(m/s²)'],
+        ['X(°/s)', 'Y(°/s)', 'Z(°/s)'],
+        ['Roll(°)', 'Pitch(°)', 'Yaw(°)']
+    ]
+
+    y_labels = [
+        'Aceleração (m/s²)',
+        'Velocidade Angular (°/s)',
+        'Rotação (°)'
+    ]    
+
+    nome_arquivo_sem_extensao = os.path.splitext(os.path.basename(nome_arquivo))[0]
+
+    for i, (cols, nomes) in enumerate(zip(colunas, nomes_linhas)):
+        if all(tabela.columns[col] in tabela.columns for col in cols):
+            fig = px.line(tabela, x=tabela.columns[0], y=[tabela.columns[col] for col in cols], 
+                          labels={'x': 'Tempo(s)', 'value': y_labels[i]}, 
+                          title=f'Gráfico {i + 1}, {nome_arquivo_sem_extensao}, Frequência: 100Hz')
+
+            for j, nome in enumerate(nomes):
+                fig.data[j].name = nome
+
+            fig.update_layout(
+                xaxis_title='Tempo (s)', 
+                yaxis_title=y_labels[i],
+                yaxis=dict(type='linear'),
+                width=1200, 
+                height=600
+            )
+
+            output_file = os.path.join(output_dir, f'Grafico_{i + 1}.html')
+            fig.write_html(output_file)
+            print(f'Gráfico {i + 1} salvo em {output_file}')
+        else:
+            print(f"Colunas {cols} não encontradas no DataFrame.")
+
+# Função para exibir a explicação e o gráfico na interface Tkinter
+def abrir_interface():
+    root = tk.Tk()
+    root.title("Análise de Entropia Amostral")
+
+    root.grid_rowconfigure(0, weight=1)
+    root.grid_columnconfigure(0, weight=1)
+    root.grid_columnconfigure(1, weight=1)
+
+    explicacao_texto = scrolledtext.ScrolledText(root, width=60, height=20, wrap=tk.WORD)
+    explicacao_texto.grid(row=0, column=1, padx=10, pady=10)
+
+    explicacao_texto.insert(tk.INSERT, """
+    Análise dos Gráficos:
+    1. **Mediana SampEn**:
+       Este gráfico mostra a mediana da entropia amostral (SampEn) para os dados.
+       O valor de 'r' varia entre 0,1 e 1, representando diferentes tolerâncias.
+       A mediana indica a complexidade global do padrão de movimento.
+       Valores mais altos de mediana sugerem maior variabilidade nos dados.
+
+    2. **Erro Padrão SampEn**:
+       O erro padrão da mediana indica a precisão dos cálculos de SampEn.
+       Quanto menor o erro, mais confiável é a estimativa da mediana.
+
+    3. **Variância SampEn**:
+       A variância mede a dispersão dos valores de SampEn.
+       Uma maior variância indica maior irregularidade ou imprevisibilidade nos dados.
+
+    4. **Erro Normalizado SampEn**:
+       O erro normalizado ajusta a precisão da mediana levando em conta sua magnitude.
+       Um erro menor significa que a mediana é bem estimada e confiável.
+    """)
+
+    dados = carregar_dados(r"C:\Users\julia\Desktop\PIBIC\controle-postural\controle-postural\BOS_0605_CP_CV_01.txt")
+    r_vals = np.linspace(0.1, 1.0, 5)
+
+    if dados is not None:
+        ax = dados.iloc[:, 1].values
+        ay = dados.iloc[:, 2].values
+        az = dados.iloc[:, 3].values
+
+        estatisticas = {'X': {}, 'Y': {}, 'Z': {}}
+
+        for m in [1, 2, 3, 4]:
+            estatisticas['X'][m] = []
+            estatisticas['Y'][m] = []
+            estatisticas['Z'][m] = []
+
+            for r in r_vals:
+                mse_x = multiscale_entropy(ax, scale_max=20, m=m, r=r)
+                mse_y = multiscale_entropy(ay, scale_max=20, m=m, r=r)
+                mse_z = multiscale_entropy(az, scale_max=20, m=m, r=r)
+
+                estatisticas['X'][m].append(calcular_estatisticas_sampen(mse_x, mse_y))
+                estatisticas['Y'][m].append(calcular_estatisticas_sampen(mse_y, mse_z))
+                estatisticas['Z'][m].append(calcular_estatisticas_sampen(mse_x, mse_z))
+
+            estatisticas['X'][m] = list(zip(*estatisticas['X'][m]))
+            estatisticas['Y'][m] = list(zip(*estatisticas['Y'][m]))
+            estatisticas['Z'][m] = list(zip(*estatisticas['Z'][m]))
+
+        plotar_estatisticas_separadas(r_vals, "BOS_0605_CP_CV_01.txt", estatisticas)
+
+        output_dir = os.path.dirname(r"C:\Users\julia\Desktop\PIBIC\controle-postural\controle-postural\BOS_0605_CP_CV_01.txt")
+        plotar_matriz_interativa(dados, output_dir, "BOS_0605_CP_CV_01.txt")
+
+    root.mainloop()
+
+# Iniciar a interface gráfica
+abrir_interface()
