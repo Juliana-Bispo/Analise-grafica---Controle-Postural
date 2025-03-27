@@ -1,7 +1,7 @@
-# Script de Análise de Controle Postural
+# Análise de Controle Postural
 
-## Visão Geral
-Este script em Python é projetado para análise avançada de dados de controle postural, focando no cálculo de entropia amostral (SampEn) e entropia multiescala (MSE) em diferentes eixos de movimento.
+## Introdução
+Este readme tem o objetido de explicar prte a parte o código escrito em Python, o código explicado esta presente no  arquivo [controle e MSE](https://github.com/Juliana-Bispo/Analise-grafica---Controle-Postural/blob/main/controle%20e%20MSE) Este código de Python é projetado para análise avançada de dados de controle postural, focando no cálculo de entropia amostral (SampEn) e entropia multiescala (MSE) em diferentes eixos de movimento.
 
 ## Bibliotecas Principais e Importações
 ```python
@@ -15,7 +15,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import plotly.express as px
 from pathlib import Path
 ```
-O script importa bibliotecas essenciais para:
+O trecho importa bibliotecas essenciais para:
 - Computações numéricas (NumPy)
 - Manipulação de dados (Pandas)
 - Plotagem de gráficos (Matplotlib, Plotly)
@@ -38,7 +38,7 @@ def carregar_dados(caminho_arquivo, skip_rows=15, sep="\t", decimal=','):
   - Separador decimal
 - Trata erros de arquivo não encontrado
 
-## Cálculo da Entropia Amostral
+## Cálculo da Sample Entropy (SampEn)
 ```python
 def sample_entropy(time_series, m, r):
     n = len(time_series)
@@ -60,7 +60,7 @@ def sample_entropy(time_series, m, r):
   - `m`: Dimensão de incorporação
   - `r`: Tolerância para correspondência de padrões
 
-## Função de Entropia Multiescala
+## Função de Multiscale Entropy
 ```python
 def multiscale_entropy(data, scale_max, m=2, r=0.2):
     def coarse_graining(data, scale):
@@ -102,7 +102,7 @@ def calcular_estatisticas_sampen(mse_x, mse_y):
 
 ## Funções de Visualização
 O script inclui duas funções principais de visualização:
-1. `plotar_estatisticas_separadas()`: Cria gráficos estatísticos para eixos X, Y, Z
+1. `plotar_estatisticas_separadas()`: Cria gráficos estatísticos para eixos {X, Y, Z} separadamente;
 2. `plotar_matriz_interativa()`: Gera gráficos interativos HTML usando Plotly
 
 ## Interface Tkinter
