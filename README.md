@@ -102,8 +102,8 @@ def calcular_estatisticas_sampen(mse_x, mse_y):
 
 ## Funções de Visualização
 O script inclui duas funções principais de visualização:
-1. `plotar_estatisticas_separadas()`: Cria gráficos estatísticos para eixos {X, Y, Z} separadamente;
-2. `plotar_matriz_interativa()`: Gera gráficos interativos HTML usando Plotly
+1. `plotar_estatisticas_separadas()`: Cria gráficos estatísticos simples para eixos {X, Y, Z} em relação à aceleraçãoo, rotação e velocidade angular. Estes graficos ficam salvos na pasta em que está o arquivo de origem;
+2. `plotar_matriz_interativa()`: Gera gráficos interativos HTML usando Plotly, estes graficos abrem um de cada vez, para abrir o proximo plot o anterior preecisa ser fechado e estes graficos não ficam salvos como os plots anteriores,
 
 ## Interface Tkinter
 ```python
