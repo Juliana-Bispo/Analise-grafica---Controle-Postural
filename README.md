@@ -128,10 +128,4 @@ abrir_interface()
 ```
 - Inicia a interface Tkinter para começar a análise
 
-## Propósito
-Este script é projetado para análise científica de dados de controle postural, especificamente:
-- Calculando entropia amostral e multiescala
-- Visualizando a complexidade dos dados em diferentes eixos
-- Fornecendo visualização interativa e explicação
-
-**Nota**: O script é adaptado para um contexto de pesquisa específico, provavelmente em biomecânica ou ciências do movimento.
+**Nota**: O código explicado foi implementado em janeiro de 2025
